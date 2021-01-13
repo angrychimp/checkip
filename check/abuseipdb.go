@@ -38,6 +38,7 @@ type AbuseIPDB struct {
 		// 	ReporterCountryName string    `json:"reporterCountryName"`
 		// } `json:"reports"`
 	} `json:"data"`
+	Source string
 }
 
 // Do fills in AbuseIPDB data for a given IP address. See the AbuseIPDB API
@@ -48,7 +49,8 @@ func (a *AbuseIPDB) Do(ipaddr net.IP) (bool, error) {
 		return false, fmt.Errorf("can't call API: %w", err)
 	}
 
-	baseURL, err := url.Parse("https://api.abuseipdb.com/api/v2/check")
+	a.Source = "https://api.abuseipdb.com/api/v2/check"
+	baseURL, err := url.Parse(a.Source)
 	if err != nil {
 		return false, err
 	}
@@ -91,19 +93,23 @@ func (a *AbuseIPDB) Do(ipaddr net.IP) (bool, error) {
 
 // Name returns the name of the check.
 func (a *AbuseIPDB) Name() string {
-	return fmt.Sprint("abuseipdb.com user reports")
+	return fmt.Sprint("abuseipdb.com")
 }
 
-// String returns the result of the check.
-func (a *AbuseIPDB) String() string {
+// Result returns the result of the check.
+func (a *AbuseIPDB) Result(verbose bool) string {
 	funcMap := template.FuncMap{}
 	const tmpl = `
-	abuse confidence: {{.Data.AbuseConfidenceScore}}%
-	whitelisted:   	  {{.Data.IsWhitelisted}}
-	last reported:    {{.Data.LastReportedAt}}
-	total reports:    {{.Data.TotalReports}}
-	domain: 	  {{.Data.Domain}}
-	usage:		  {{.Data.UsageType}}`
+		whitelisted:   {{.Data.IsWhitelisted}}
+		last reported: {{.Data.LastReportedAt}}
+		total reports: {{.Data.TotalReports}}
+		domain:        {{.Data.Domain}}
+		usage:	       {{.Data.UsageType}}
+		source:	       {{.Source}}`
 
-	return util.TemplateToString(tmpl, funcMap, a)
+	result := fmt.Sprintf("malicious with %d%% confidence", a.Data.AbuseConfidenceScore)
+	if verbose {
+		result += util.TemplateToString(tmpl, funcMap, a)
+	}
+	return result
 }

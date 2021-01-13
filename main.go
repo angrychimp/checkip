@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
-	"os"
 
 	"github.com/jreisinger/checkip/check"
 )
@@ -14,12 +12,7 @@ var Version = "dev"
 
 func main() {
 	log.SetFlags(0) // no timestamp in error messages
-	handleFlags()
-
-	ipaddr := net.ParseIP(os.Args[1])
-	if ipaddr == nil {
-		log.Fatalf("invalid IP address: %v\n", os.Args[1])
-	}
+	ipaddr, verbose := handleFlags()
 
 	ch := make(chan string)
 	checks := []check.Check{
@@ -31,7 +24,7 @@ func main() {
 		&check.VirusTotal{},
 	}
 	for _, chk := range checks {
-		go check.Run(chk, ipaddr, ch)
+		go check.Run(chk, ipaddr, ch, verbose)
 	}
 	for range checks {
 		fmt.Print(<-ch)

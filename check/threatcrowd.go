@@ -23,6 +23,7 @@ type ThreatCrowd struct {
 	References []interface{} `json:"references"`
 	Votes      int           `json:"votes"`
 	Permalink  string        `json:"permalink"`
+	Source     string
 }
 
 // Do retrieves information about the IP address from the ThreatCrowd API. If
@@ -30,7 +31,8 @@ type ThreatCrowd struct {
 func (t *ThreatCrowd) Do(ipaddr net.IP) (bool, error) {
 	// curl https://www.threatcrowd.org/searchApi/v2/ip/report/?ip=188.40.75.132
 
-	baseURL, err := url.Parse("https://www.threatcrowd.org/searchApi/v2/ip/report")
+	t.Source = "https://www.threatcrowd.org/searchApi/v2/ip/report"
+	baseURL, err := url.Parse(t.Source)
 	if err != nil {
 		return false, err
 	}
@@ -68,26 +70,25 @@ func (t *ThreatCrowd) Do(ipaddr net.IP) (bool, error) {
 
 // Name returns the name of the check.
 func (t *ThreatCrowd) Name() string {
-	return fmt.Sprint("threatcrowd.org crawlers")
+	return fmt.Sprint("ThreatCrowd")
 }
 
-// String returns the result of the check.
-func (t *ThreatCrowd) String() string {
-	funcMap := template.FuncMap{
-		"meaning": getVotesMeaning,
-	}
+// Result returns the result of the check.
+func (t *ThreatCrowd) Result(verbose bool) string {
 	tmpl := `
-	votes from AlienVault OTX: {{ .Votes | meaning }}`
+		link:   {{ .Permalink }}
+		source: {{.Source}}`
 
-	return util.TemplateToString(tmpl, funcMap, t)
-}
-
-func getVotesMeaning(n int) string {
 	// https://github.com/AlienVault-OTX/ApiV2#votes
 	votesMeaning := map[int]string{
 		-1: "most users have voted this malicious",
 		0:  "equal number of users have voted this malicious and not malicious",
 		1:  "most users have voted this not malicious",
 	}
-	return votesMeaning[n]
+	result := fmt.Sprintf("%s", votesMeaning[t.Votes])
+
+	if verbose {
+		result += util.TemplateToString(tmpl, template.FuncMap{}, t)
+	}
+	return result
 }

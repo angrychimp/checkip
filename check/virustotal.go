@@ -21,7 +21,8 @@ func (vt *VirusTotal) Do(ipaddr net.IP) (bool, error) {
 
 	// curl --header "x-apikey:$VIRUSTOTAL_API_KEY" https://www.virustotal.com/api/v3/ip_addresses/1.1.1.1
 
-	baseURL, err := url.Parse("https://www.virustotal.com/api/v3/ip_addresses/" + ipaddr.String())
+	vt.Source = "https://www.virustotal.com/api/v3/ip_addresses/"
+	baseURL, err := url.Parse(vt.Source + ipaddr.String())
 	if err != nil {
 		return false, err
 	}
@@ -58,16 +59,21 @@ func (vt *VirusTotal) Do(ipaddr net.IP) (bool, error) {
 
 // Name returns the name of the check.
 func (vt *VirusTotal) Name() string {
-	return fmt.Sprint("virustotal.com scans")
+	return fmt.Sprint("VirusTotal")
 }
 
-// String returns the result of the check.
-func (vt *VirusTotal) String() string {
+// Result returns the result of the check.
+func (vt *VirusTotal) Result(verbose bool) string {
 	funcMap := template.FuncMap{}
 	const tmpl = `
-	malicious:  {{.Data.Attributes.LastAnalysisStats.Malicious}}
-	suspicious: {{.Data.Attributes.LastAnalysisStats.Suspicious}}
-	harmless:   {{.Data.Attributes.LastAnalysisStats.Harmless}}`
+		source: {{.Source}}`
 
-	return util.TemplateToString(tmpl, funcMap, vt)
+	result := fmt.Sprintf("%d malicious, %d suspicious, %d harmless scannners results",
+		vt.Data.Attributes.LastAnalysisStats.Malicious,
+		vt.Data.Attributes.LastAnalysisStats.Suspicious,
+		vt.Data.Attributes.LastAnalysisStats.Harmless)
+	if verbose {
+		result += util.TemplateToString(tmpl, funcMap, vt)
+	}
+	return result
 }

@@ -3,7 +3,7 @@ package check
 import (
 	"fmt"
 	"net"
-	"strings"
+	"text/template"
 
 	"github.com/jreisinger/checkip/util"
 	"github.com/oschwald/geoip2-golang"
@@ -11,7 +11,10 @@ import (
 
 // Geo holds geographic location from MaxMind's GeoIP database.
 type Geo struct {
-	Location []string
+	City    string
+	Country string
+	IsoCode string
+	Source  string
 }
 
 // Do fills in the geolocation data.
@@ -22,7 +25,8 @@ func (g *Geo) Do(ip net.IP) (bool, error) {
 	}
 
 	file := "/var/tmp/GeoLite2-City.mmdb"
-	url := "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=" + licenseKey + "&suffix=tar.gz"
+	g.Source = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City"
+	url := g.Source + "&license_key=" + licenseKey + "&suffix=tar.gz"
 
 	if err := util.Update(file, url, "tgz"); err != nil {
 		return false, fmt.Errorf("can't update DB file: %v", err)
@@ -39,23 +43,9 @@ func (g *Geo) Do(ip net.IP) (bool, error) {
 		return false, err
 	}
 
-	city := record.City.Names["en"]
-	country := record.Country.Names["en"]
-	isoCode := record.Country.IsoCode
-
-	if city == "" {
-		city = "city unknown"
-	}
-	if country == "" {
-		country = "country unknown"
-	}
-	if isoCode == "" {
-		isoCode = "ISO code unknown"
-	}
-
-	g.Location = append(g.Location, city)
-	g.Location = append(g.Location, country)
-	g.Location = append(g.Location, isoCode)
+	g.City = record.City.Names["en"]
+	g.Country = record.Country.Names["en"]
+	g.IsoCode = record.Country.IsoCode
 
 	return true, nil
 }
@@ -65,7 +55,17 @@ func (g *Geo) Name() string {
 	return fmt.Sprint("GEO")
 }
 
-// String returns the result of the check.
-func (g *Geo) String() string {
-	return fmt.Sprintf("%s", strings.Join(g.Location, " | "))
+// Result returns the result of the check.
+func (g *Geo) Result(verbose bool) string {
+
+	funcMap := template.FuncMap{}
+	const tmpl = `
+		City:     {{.City}}
+		ISO code: {{.IsoCode}}
+		Source:   {{.Source}}`
+	result := fmt.Sprintf("%s", g.Country)
+	if verbose {
+		result += util.TemplateToString(tmpl, funcMap, g)
+	}
+	return result
 }

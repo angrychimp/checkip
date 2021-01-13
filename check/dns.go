@@ -26,7 +26,7 @@ func (d *DNS) Name() string {
 	return fmt.Sprint("DNS")
 }
 
-// String returns the result of the check.
-func (d *DNS) String() string {
-	return fmt.Sprintf("%s", strings.Join(d.Names, " | "))
+// Result returns the result of the check.
+func (d *DNS) Result(verbose bool) string {
+	return fmt.Sprintf("%s", strings.Join(d.Names, ", "))
 }

@@ -642,4 +642,5 @@ type VirusTotal struct {
 		// } `json:"links"`
 		// Type string `json:"type"`
 	} `json:"data"`
+	Source string
 }

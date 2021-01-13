@@ -8,12 +8,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/jreisinger/checkip/util"
 )
 
 // AS holds information about an Autonomous System.
 type AS struct {
+	Source      string
 	FirstIP     net.IP
 	LastIP      net.IP
 	CountryCode string
@@ -25,10 +27,10 @@ type AS struct {
 // file ip2asn-combined downloaded from iptoasn.com.
 func (a *AS) Do(ipaddr net.IP) (bool, error) {
 	file := "/var/tmp/ip2asn-combined.tsv"
-	url := "https://iptoasn.com/data/ip2asn-combined.tsv.gz"
+	a.Source = "https://iptoasn.com/data/ip2asn-combined.tsv.gz"
 
-	if err := util.Update(file, url, "gz"); err != nil {
-		return false, fmt.Errorf("can't update %s from %s: %v", file, url, err)
+	if err := util.Update(file, a.Source, "gz"); err != nil {
+		return false, fmt.Errorf("can't update %s from %s: %v", file, a.Source, err)
 	}
 
 	if err := a.search(ipaddr, file); err != nil {
@@ -43,10 +45,20 @@ func (a *AS) Name() string {
 	return fmt.Sprint("AS")
 }
 
-// String returns the result of the check.
-func (a *AS) String() string {
-	return fmt.Sprintf("%d | %s - %s | %s | %s",
-		a.Number, a.FirstIP, a.LastIP, a.Description, a.CountryCode)
+// Result returns the result of the check.
+func (a *AS) Result(verbose bool) string {
+	funcMap := template.FuncMap{}
+	const tmpl = `
+		Country:  {{.CountryCode}}
+		ASN:      {{.Number}}
+		first IP: {{.FirstIP}}
+		last IP:  {{.LastIP}}
+		source:   {{.Source}}`
+	result := fmt.Sprintf("%s", a.Description)
+	if verbose {
+		result += util.TemplateToString(tmpl, funcMap, a)
+	}
+	return result
 }
 
 // search searches the ippadrr in tsvFile and if found fills in AS data.
