@@ -6,14 +6,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-)
+	"text/template"
 
-// https://github.com/AlienVault-OTX/ApiV2#votes
-var votesMeaning = map[int]string{
-	-1: "most users have voted this malicious",
-	0:  "equal number of users have voted this malicious and not malicious",
-	1:  "most users have voted this not malicious",
-}
+	"github.com/jreisinger/checkip/util"
+)
 
 // ThreatCrowd holds information about an IP address from
 // https://www.threatcrowd.org voting.
@@ -72,11 +68,26 @@ func (t *ThreatCrowd) Do(ipaddr net.IP) (bool, error) {
 
 // Name returns the name of the check.
 func (t *ThreatCrowd) Name() string {
-	return fmt.Sprint("ThreatCrowd")
+	return fmt.Sprint("threatcrowd.org crawlers")
 }
 
 // String returns the result of the check.
 func (t *ThreatCrowd) String() string {
+	funcMap := template.FuncMap{
+		"meaning": getVotesMeaning,
+	}
+	tmpl := `
+	votes from AlienVault OTX: {{ .Votes | meaning }}`
 
-	return fmt.Sprintf("%s", votesMeaning[t.Votes])
+	return util.TemplateToString(tmpl, funcMap, t)
+}
+
+func getVotesMeaning(n int) string {
+	// https://github.com/AlienVault-OTX/ApiV2#votes
+	votesMeaning := map[int]string{
+		-1: "most users have voted this malicious",
+		0:  "equal number of users have voted this malicious and not malicious",
+		1:  "most users have voted this not malicious",
+	}
+	return votesMeaning[n]
 }

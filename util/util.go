@@ -2,13 +2,16 @@ package util
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
+	"text/template"
 	"time"
 
 	"github.com/kylelemons/go-gypsy/yaml"
@@ -159,4 +162,15 @@ func Update(file, url string, compressFmt string) error {
 	}
 
 	return nil
+}
+
+// TemplateToString parses and executes template and turns it into a string.
+func TemplateToString(tmpl string, funcMap template.FuncMap, data interface{}) string {
+	t := template.Must(template.New("tmpl").Funcs(funcMap).Parse(tmpl))
+	var out bytes.Buffer
+	err := t.Execute(&out, data)
+	if err != nil {
+		log.Fatalf("executing template: %v", err)
+	}
+	return out.String()
 }

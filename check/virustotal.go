@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"text/template"
 
 	"github.com/jreisinger/checkip/util"
 )
@@ -57,10 +58,16 @@ func (vt *VirusTotal) Do(ipaddr net.IP) (bool, error) {
 
 // Name returns the name of the check.
 func (vt *VirusTotal) Name() string {
-	return fmt.Sprint("VirusTotal")
+	return fmt.Sprint("virustotal.com scans")
 }
 
 // String returns the result of the check.
 func (vt *VirusTotal) String() string {
-	return fmt.Sprintf("scannners results: %d malicious, %d suspicious, %d harmless", vt.Data.Attributes.LastAnalysisStats.Malicious, vt.Data.Attributes.LastAnalysisStats.Suspicious, vt.Data.Attributes.LastAnalysisStats.Harmless)
+	funcMap := template.FuncMap{}
+	const tmpl = `
+	malicious:  {{.Data.Attributes.LastAnalysisStats.Malicious}}
+	suspicious: {{.Data.Attributes.LastAnalysisStats.Suspicious}}
+	harmless:   {{.Data.Attributes.LastAnalysisStats.Harmless}}`
+
+	return util.TemplateToString(tmpl, funcMap, vt)
 }

@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"text/template"
 	"time"
 
 	"github.com/jreisinger/checkip/util"
@@ -14,28 +15,28 @@ import (
 // AbuseIPDB holds information about an IP address from abuseipdb.com database.
 type AbuseIPDB struct {
 	Data struct {
-		IPAddress            string        `json:"ipAddress"`
-		IsPublic             bool          `json:"isPublic"`
-		IPVersion            int           `json:"ipVersion"`
-		IsWhitelisted        bool          `json:"isWhitelisted"`
-		AbuseConfidenceScore int           `json:"abuseConfidenceScore"`
-		CountryCode          string        `json:"countryCode"`
-		UsageType            string        `json:"usageType"`
-		Isp                  string        `json:"isp"`
-		Domain               string        `json:"domain"`
-		Hostnames            []interface{} `json:"hostnames"`
-		CountryName          string        `json:"countryName"`
-		TotalReports         int           `json:"totalReports"`
-		NumDistinctUsers     int           `json:"numDistinctUsers"`
-		LastReportedAt       time.Time     `json:"lastReportedAt"`
-		Reports              []struct {
-			ReportedAt          time.Time `json:"reportedAt"`
-			Comment             string    `json:"comment"`
-			Categories          []int     `json:"categories"`
-			ReporterID          int       `json:"reporterId"`
-			ReporterCountryCode string    `json:"reporterCountryCode"`
-			ReporterCountryName string    `json:"reporterCountryName"`
-		} `json:"reports"`
+		IsWhitelisted        bool      `json:"isWhitelisted"`
+		AbuseConfidenceScore int       `json:"abuseConfidenceScore"`
+		UsageType            string    `json:"usageType"`
+		Domain               string    `json:"domain"`
+		TotalReports         int       `json:"totalReports"`
+		LastReportedAt       time.Time `json:"lastReportedAt"`
+		// IPAddress            string        `json:"ipAddress"`
+		// IsPublic             bool          `json:"isPublic"`
+		// IPVersion            int           `json:"ipVersion"`
+		// CountryCode          string        `json:"countryCode"`
+		// Isp                  string        `json:"isp"`
+		// Hostnames []interface{} `json:"hostnames"`
+		// CountryName          string        `json:"countryName"`
+		// NumDistinctUsers     int           `json:"numDistinctUsers"`
+		// Reports              []struct {
+		// 	ReportedAt          time.Time `json:"reportedAt"`
+		// 	Comment             string    `json:"comment"`
+		// 	Categories          []int     `json:"categories"`
+		// 	ReporterID          int       `json:"reporterId"`
+		// 	ReporterCountryCode string    `json:"reporterCountryCode"`
+		// 	ReporterCountryName string    `json:"reporterCountryName"`
+		// } `json:"reports"`
 	} `json:"data"`
 }
 
@@ -80,7 +81,8 @@ func (a *AbuseIPDB) Do(ipaddr net.IP) (bool, error) {
 	if err := json.NewDecoder(resp.Body).Decode(a); err != nil {
 		return false, err
 	}
-	if a.Data.AbuseConfidenceScore > 0 {
+
+	if a.Data.AbuseConfidenceScore > 0 && !a.Data.IsWhitelisted {
 		return false, nil
 	}
 
@@ -89,10 +91,19 @@ func (a *AbuseIPDB) Do(ipaddr net.IP) (bool, error) {
 
 // Name returns the name of the check.
 func (a *AbuseIPDB) Name() string {
-	return fmt.Sprint("AbuseIPDB")
+	return fmt.Sprint("abuseipdb.com user reports")
 }
 
 // String returns the result of the check.
 func (a *AbuseIPDB) String() string {
-	return fmt.Sprintf("malicious with %d%% confidence | %v", a.Data.AbuseConfidenceScore, a.Data.Domain)
+	funcMap := template.FuncMap{}
+	const tmpl = `
+	abuse confidence: {{.Data.AbuseConfidenceScore}}%
+	whitelisted:   	  {{.Data.IsWhitelisted}}
+	last reported:    {{.Data.LastReportedAt}}
+	total reports:    {{.Data.TotalReports}}
+	domain: 	  {{.Data.Domain}}
+	usage:		  {{.Data.UsageType}}`
+
+	return util.TemplateToString(tmpl, funcMap, a)
 }
